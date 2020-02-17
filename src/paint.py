@@ -1,6 +1,9 @@
 """
 todo single pen click throws index error
 
+cursive wont work for the bounding box grabber 
+
+
 """
 
 from tkinter import *
@@ -9,6 +12,9 @@ from tkinter.colorchooser import askcolor
 import io
 from PIL import Image, ImageTk
 import numpy as np
+
+import torch
+import torchvision
 
 config = {
     "width" : 1200,
@@ -32,6 +38,7 @@ class Paint(object):
         self.cur_stroke = []
         self.img = None
         self.state_bounds = []
+        self.chars = []
 
         self.pen_button = Button(self.root, text='pen', command=self.use_pen)
         self.pen_button.grid(row=0, column=0)
@@ -105,21 +112,25 @@ class Paint(object):
         self.cur_stroke = []
 
     def clear(self):
-        print(f'state: {self.state}')
-        print(f'state_bounds: {self.state_bounds}')
+        self.chars = []
         self.state_bounds = []
         self.state = []
+        self.img = None
         self.c.delete('all')
 
     def save(self):
         self.img = save_canvas(self.c, save=True)
+        self.chars = get_chars(self.img, self.state_bounds)
         print(f'img: {self.img}')
 
     def info(self):
         # broken
         print(f'state: {self.state}')
+        print(f'chars: {self.chars}')
+        
         print(f'state_bounds: {self.state_bounds}')
         print(f'num_strokes: {len(self.state)}')
+        print(f'img shape: {self.img.shape}')
 
 
 def norm_stroke(s: np.ndarray) -> np.ndarray:
@@ -136,16 +147,22 @@ def stroke_bounds(s: np.ndarray) -> np.ndarray:
 
 def save_canvas(c:Canvas, fn='test', save=False):
     ps = c.postscript(colormode='gray')
+    print(ps)
     img = Image.open(io.BytesIO(ps.encode('utf-8')))
     if save:
         img.save(f'{PATH}{fn}.jpg', 'jpeg')
-    return img
+    return np.array(img)
 
 def char_from_img(img, b):
     xs = b[0]
     ys = b[1]
     return img[xs[0]:xs[1], ys[0]:ys[1]]
 
+def get_chars(img, bounds):
+    return [char_from_img(img, b) for b in bounds]
+
+def write_char(char):
+    pass
 
 if __name__ == '__main__':
     Paint()
