@@ -15,7 +15,6 @@ import numpy as np
 import pyscreenshot as ImageGrab
 import torch
 import torchvision
-import scipy.misc
 config = {
     "width" : 1400,
     "height" : 500,
@@ -56,7 +55,7 @@ class Paint(object):
         self.save_button = Button(self.root, text='save', command=self.save)
         self.save_button.grid(row=0, column=4)
 
-        self.c = Canvas(self.root, bg=config['bg'], width=config['width'], height=config['height'])
+        self.c = Canvas(self.root, bg=config['bg']) #, width=config['width'], height=config['height'])
         self.c.grid(row=1, columnspan=5,  )
         
         self.setup()
@@ -75,9 +74,6 @@ class Paint(object):
 
     def use_pen(self):
         self.activate_button(self.pen_button)
-
-    def use_brush(self):
-        self.activate_button(self.brush_button)
 
     def choose_color(self):
         self.eraser_on = False
@@ -159,16 +155,17 @@ class Paint(object):
         box = (x, y, x1, y1)
         print('box = ', box)
         return box
+
 def norm_stroke(s: np.ndarray) -> np.ndarray:
     return s - s[0]
 
 
 def stroke_bounds(s: np.ndarray) -> np.ndarray:
-    xmin = s[:, 0].min()
-    xmax = s[:, 0].max()
+    xmin = s[:, 0].min()# - 200
+    xmax = s[:, 0].max()# - 200
 
-    ymin = s[:, 1].min()
-    ymax = s[:, 1].max()
+    ymin = s[:, 1].min()# - 150
+    ymax = s[:, 1].max()# - 150
     
     return (xmin, xmax), (ymin, ymax)
 
@@ -179,22 +176,29 @@ def adj(n:int, m:int):
 def fix_bound(b, img):
     shape = img.shape
     h_adj = adj(config['height'], shape[0])
-    adj(config['height'], shape[0])
+    w_adj = adj(config['width'], shape[1])
     
 def save_canvas(ps, fn='test', save=False):
     img = Image.open(io.BytesIO(ps.encode('utf-8')))
     if save:
-        img.save(f'{PATH}{fn}.jpg', 'jpeg', height=config['height'], width=config['width'])
+        img.save(f'{PATH}{fn}.jpg', 'jpeg') #, height=config['height'], width=config['width'])
         
     return np.asarray(img)
 
-def char_from_img(img, b):
-    xs = b[0]
-    ys = b[1]
+def adj2(x:int)->int:
+    return int(0.75 * x)
+
+def char_from_img(img, b, pad:int=5):
+    x0, x1 = b[0]
+    y0, y1 = b[1] 
+    
+    x0, x1, y0, y1 = [adj2(x) for x in [x0, x1, y0, y1]]
+    
     print(img.shape)
-    print(xs)
-    print(ys)
-    return img[xs[0]:xs[1], ys[0]:ys[1], :]
+    print(f'xs {x0, x1}')
+    print(f'ys {y0, y1}')
+    return img[y0-pad:y1+pad, x0-pad:x1+pad]
+    # return img[xs[0]:xs[1], ys[0]:ys[1]]
 
 def get_chars(img, bounds):
     return [char_from_img(img, b) for b in bounds]
@@ -202,14 +206,10 @@ def get_chars(img, bounds):
 def save_char(char:np.array, fn:str):
     shape = char.shape
     print(f'char shape: {char.shape}')
-    t_char = torch.tensor(char, dtype=torch.uint8) # .view(shape[-1], shape[-2], shape[-3])
-    print(t_char)
-    print(t_char.dtype)
-    torchvision.utils.save_image(t_char, f'{PATH}{fn}.png')
-
-scipy.misc.imsave('outfile.jpg', image_array)
+    im = Image.fromarray(char)
+    im.save(f'{PATH}{fn}.png')
 
 
 
 if __name__ == '__main__':
-    Paint()
+    x = Paint()
