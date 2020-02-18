@@ -71,6 +71,7 @@ class Net(nn.Module):
 def prep():
     edits = transforms.Compose([transforms.ToTensor()])
 
+    # torchvision datasets emnist currently broken
     emnist = torchvision.datasets.EMNIST(
         '/home/sippycups/D/datasets/', 'byclass', download=True, transform=edits)
 

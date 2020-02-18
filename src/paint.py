@@ -2,7 +2,7 @@
 todo single pen click throws index error
 
 cursive wont work for the bounding box grabber 
-
+https://stackoverflow.com/questions/41940945/saving-canvas-from-tkinter-to-file
 
 """
 
@@ -12,13 +12,13 @@ from tkinter.colorchooser import askcolor
 import io
 from PIL import Image, ImageTk
 import numpy as np
-
+import pyscreenshot as ImageGrab
 import torch
 import torchvision
-
+import scipy.misc
 config = {
-    "width" : 1200,
-    "height" : 400,
+    "width" : 1400,
+    "height" : 500,
     "pen_radius": 5,
     'bg': 'white'
 }
@@ -43,8 +43,9 @@ class Paint(object):
         self.pen_button = Button(self.root, text='pen', command=self.use_pen)
         self.pen_button.grid(row=0, column=0)
 
-        self.brush_button = Button(self.root, text='brush', command=self.use_brush)
-        self.brush_button.grid(row=0, column=1)
+        self.snap_button = Button(
+            self.root, text='snap', command=self._snapCanvas)
+        self.snap_button.grid(row=0, column=1)
 
         self.info_button = Button(self.root, text='info', command=self.info)
         self.info_button.grid(row=0, column=2)
@@ -56,7 +57,7 @@ class Paint(object):
         self.save_button.grid(row=0, column=4)
 
         self.c = Canvas(self.root, bg=config['bg'], width=config['width'], height=config['height'])
-        self.c.grid(row=1, columnspan=5)
+        self.c.grid(row=1, columnspan=5,  )
         
         self.setup()
         self.root.mainloop()
@@ -119,9 +120,23 @@ class Paint(object):
         self.c.delete('all')
 
     def save(self):
-        self.img = save_canvas(self.c, save=True)
+        self.ps = self.c.postscript(colormode='gray')
+        self.img = save_canvas(self.ps, save=True)
         self.chars = get_chars(self.img, self.state_bounds)
-        print(f'img: {self.img}')
+        [save_char(char, str(i)) for i, char in enumerate(self.chars)]
+        
+        # print(f'img: {self.img}')
+
+
+    def _snapCanvas(self):
+        print('\n def _snapCanvas(self):')
+        canvas = self.info()  # Get Window Coordinates of Canvas
+        self.grabcanvas = ImageGrab.grab(bbox=canvas)
+        self.grabcanvas.show()
+
+
+    def _save(self):
+        self.grabcanvas.save("out.jpg")
 
     def info(self):
         # broken
@@ -131,38 +146,70 @@ class Paint(object):
         print(f'state_bounds: {self.state_bounds}')
         print(f'num_strokes: {len(self.state)}')
         print(f'img shape: {self.img.shape}')
-
-
+        print(f'self.cv.winfo_rootx() = {self.c.winfo_rootx()}')
+        print(f'self.c.winfo_rooty() = {self.c.winfo_rooty()}')
+        print(f'self.c.winfo_x() ={self.c.winfo_x()}')
+        print(f'self.c.winfo_y() ={self.c.winfo_y()}')
+        print(f'self.c.winfo_width() ={self.c.winfo_width()}')
+        print(f'self.c.winfo_height() ={self.c.winfo_height()}')
+        x = self.c.winfo_rootx()+self.c.winfo_x()
+        y = self.c.winfo_rooty()+self.c.winfo_y()
+        x1 = x+self.c.winfo_width()
+        y1 = y+self.c.winfo_height()
+        box = (x, y, x1, y1)
+        print('box = ', box)
+        return box
 def norm_stroke(s: np.ndarray) -> np.ndarray:
     return s - s[0]
 
 
 def stroke_bounds(s: np.ndarray) -> np.ndarray:
     xmin = s[:, 0].min()
-    ymin = s[:, 1].min()
     xmax = s[:, 0].max()
+
+    ymin = s[:, 1].min()
     ymax = s[:, 1].max()
+    
     return (xmin, xmax), (ymin, ymax)
 
 
-def save_canvas(c:Canvas, fn='test', save=False):
-    ps = c.postscript(colormode='gray')
-    print(ps)
+def adj(n:int, m:int):
+    return int((n-m)/2)
+
+def fix_bound(b, img):
+    shape = img.shape
+    h_adj = adj(config['height'], shape[0])
+    adj(config['height'], shape[0])
+    
+def save_canvas(ps, fn='test', save=False):
     img = Image.open(io.BytesIO(ps.encode('utf-8')))
     if save:
-        img.save(f'{PATH}{fn}.jpg', 'jpeg')
-    return np.array(img)
+        img.save(f'{PATH}{fn}.jpg', 'jpeg', height=config['height'], width=config['width'])
+        
+    return np.asarray(img)
 
 def char_from_img(img, b):
     xs = b[0]
     ys = b[1]
-    return img[xs[0]:xs[1], ys[0]:ys[1]]
+    print(img.shape)
+    print(xs)
+    print(ys)
+    return img[xs[0]:xs[1], ys[0]:ys[1], :]
 
 def get_chars(img, bounds):
     return [char_from_img(img, b) for b in bounds]
 
-def write_char(char):
-    pass
+def save_char(char:np.array, fn:str):
+    shape = char.shape
+    print(f'char shape: {char.shape}')
+    t_char = torch.tensor(char, dtype=torch.uint8) # .view(shape[-1], shape[-2], shape[-3])
+    print(t_char)
+    print(t_char.dtype)
+    torchvision.utils.save_image(t_char, f'{PATH}{fn}.png')
+
+scipy.misc.imsave('outfile.jpg', image_array)
+
+
 
 if __name__ == '__main__':
     Paint()
