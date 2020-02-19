@@ -106,7 +106,7 @@ class Paint(object):
         self.c.bind("<ButtonRelease-1>", self.reset)
 
     def live_infer_toggle(self):
-        if self.live_infer == True:
+        if self.live_infer:
             self.live_infer = False
         else:
             self.live_infer = True
@@ -154,7 +154,7 @@ class Paint(object):
         self.state_bounds.append(utilz.stroke_bounds(s))
         self.cur_stroke = []
         if self.live_infer:
-            self.save()
+            self.infer()
         if self.auto_erase:
             self.clear()
 
