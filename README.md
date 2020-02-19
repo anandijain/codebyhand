@@ -22,6 +22,7 @@ i want to code with a pen tablet, but there are no good open source models that 
 git clone https://github.com/anandijain/codebyhand
 cd codebyhand
 pip install -e . --user
+mkdir ../data
 python train.py
 python paint.py
 ```
