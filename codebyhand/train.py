@@ -12,10 +12,10 @@ from codebyhand import loaderz
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
 
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 
-MODEL_FN = f"{mz.SRC_PATH}convemnist.pth"
-LOAD_MODEL = True
+MODEL_FN = f"{mz.SRC_PATH}convemnist2.pth"
+# LOAD_MODEL = True
 SAVE_MODEL = True
 
 
@@ -46,7 +46,7 @@ def prep(verbose=True):
         print('cant load, other reason')
 
     
-    optimizer = optim.Adam(model.parameters())
+    optimizer = optim.Adadelta(model.parameters())
     x, y = emnist[0]
 
     d = {
@@ -66,7 +66,7 @@ def train(d, epoch):
         data, target = data.to(device), target.to(device)
         # data = data.view(-1, 784)
         d['optimizer'].zero_grad()
-        output = d['model'](data)# .view(-1, 10)
+        output = d['model'](data, use_dropout=True)# .view(-1, 10)
 
         loss = F.nll_loss(output, target)
         loss.backward()
@@ -83,7 +83,7 @@ def train(d, epoch):
             )
 
     if SAVE_MODEL:
-        torch.save(d['model'].state_dict(), f'{MODEL_FN}')
+        torch.save(d['model'].state_dict(), MODEL_FN)
         print(f"model saved to {MODEL_FN}")
 
 
@@ -115,6 +115,6 @@ def test(d):
 
 if __name__ == "__main__":
     d = prep()
-    for i in range(0, 2):
+    for i in range(0, 4):
         train(d, i)
         # test(d)

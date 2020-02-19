@@ -5,12 +5,22 @@ i want to code with a pen tablet, but there are no good open source models that 
 ## What's in the repo
 
 * python paint program to save handwritten characters to disk(english only rn)
-* file to train basic net on the EMNIST dataset (which torchvision just fixed and needs to be merged)
+* file to train basic net on the EMNIST dataset
 * file (kinda) to eval saved digits based on trained model (basic interpolation for resizing)
+* it gets basic single stroke characters accurately sometimes, but i need to mess with the transformers
 
-## TODO/GOAL
+## TODO/GOAL more feasible
 
 * decently accurate when evaluating on my own handwriting
-* integrating with paint.py so that as strokes are written, the model evals on them and prints to stdout
+* multi-stroke character support: using detectron2 to segment characters, then place on white background before eval
+* save strokes to database
+* add ability to label as you write to improve the model
+
+## TODO/GOAL less likely/feasible
+
 * possibly running on a flask app
 * idek about integrating with vscode, but I guess i could probably deploy an ONYX model in the extension
+
+## COMPLETED
+
+* integrated trained emnist model with paint.py so that as strokes are written, the model live infers on them and prints to stdout
