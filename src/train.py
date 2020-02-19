@@ -1,82 +1,35 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
 import torchvision
 from torchvision import transforms
-import string
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu")
-CLASSES = list(string.digits + string.ascii_letters)
+
+import modelz
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cpu")
 
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(320, 50)
-        self.fc2 = nn.Linear(50, 10)
 
-        # Spatial transformer localization-network
-        self.localization = nn.Sequential(
-            nn.Conv2d(1, 8, kernel_size=7),
-            nn.MaxPool2d(2, stride=2),
-            nn.ReLU(True),
-            nn.Conv2d(8, 10, kernel_size=5),
-            nn.MaxPool2d(2, stride=2),
-            nn.ReLU(True)
-        )
+BATCH_SIZE = 256
+SAVE_MODEL = True
 
-        # Regressor for the 3 * 2 affine matrix
-        self.fc_loc = nn.Sequential(
-            nn.Linear(10 * 3 * 3, 32),
-            nn.ReLU(True),
-            nn.Linear(32, 3 * 2)
-        )
+MODEL_FN = 'digits.pth'
 
-        # Initialize the weights/bias with identity transformation
-        self.fc_loc[2].weight.data.zero_()
-        self.fc_loc[2].bias.data.copy_(torch.tensor(
-            [1, 0, 0, 0, 1, 0], dtype=torch.float))
 
-    # Spatial transformer network forward function
-    def stn(self, x):
-        xs = self.localization(x)
-        xs = xs.view(-1, 10 * 3 * 3)
-        theta = self.fc_loc(xs)
-        theta = theta.view(-1, 2, 3)
-
-        grid = F.affine_grid(theta, x.size())
-        x = F.grid_sample(x, grid)
-
-        return x
-
-    def forward(self, x):
-        # transform the input
-        x = self.stn(x)
-
-        # Perform the usual forward pass
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-        x = x.view(-1, 320)
-        x = F.relu(self.fc1(x))
-        x = F.dropout(x, training=self.training)
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+LOG_INTERVAL = 250
 
 
 def prep():
     edits = transforms.Compose([transforms.ToTensor()])
 
     # torchvision datasets emnist currently broken
-    emnist = torchvision.datasets.EMNIST(
-        '/home/sippycups/D/datasets/', 'byclass', download=True, transform=edits)
+    emnist = torchvision.datasets.MNIST(
+        '/home/sippycups/D/datasets/', download=False, transform=edits)
 
     data_loader = torch.utils.data.DataLoader(emnist,
-                                              batch_size=4,
+                                              batch_size=BATCH_SIZE,
                                               shuffle=True,
                                               )
 
@@ -91,51 +44,60 @@ def prep():
     }
     return d
 
-
-
-
-def train(loader, epoch):
+def train(d, epoch):
     model.train()
-    for batch_idx, (data, target) in enumerate(loader):
+    for batch_idx, (data, target) in enumerate(d['loader']):
         data, target = data.to(device), target.to(device)
-
+        data = data.view(-1, 784)
         optimizer.zero_grad()
-        output = model(data)
+        output = model(data).view(-1, 10)
+
+        # print(f'output.shape : {output.shape}')
+        # print(f'data.shape : {data.shape}')
+        # print(f'target: {target.item()}')
+
         loss = F.nll_loss(output, target)
         loss.backward()
         optimizer.step()
-        if batch_idx % 500 == 0:
+        if batch_idx % LOG_INTERVAL == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(loader.dataset),
-                100. * batch_idx / len(loader), loss.item()))
-#
-# A simple test procedure to measure STN the performances on MNIST.
-#
+                epoch, batch_idx * len(data), len(d['loader'].dataset),
+                100. * batch_idx / len(d['loader']), loss.item()))
+
+    if SAVE_MODEL:
+        torch.save(model.state_dict(), MODEL_FN)
+        print(f'model saved to {MODEL_FN}')
 
 
-def test(loader):
+def test(d):
     with torch.no_grad():
         model.eval()
         test_loss = 0
         correct = 0
-        for data, target in loader:
+        for data, target in d['loader']:
             data, target = data.to(device), target.to(device)
-            output = model(data)
+            data = data.view(-1, 784)
 
-            # sum up batch loss
-            test_loss += F.nll_loss(output, target, size_average=False).item()
-            # get the index of the max log-probability
+            output = model(data).view(-1, 10)
+
+            test_loss += F.nll_loss(output, target, reduction='sum').item()
             pred = output.max(1, keepdim=True)[1]
             correct += pred.eq(target.view_as(pred)).sum().item()
 
-        test_loss /= len(loader.dataset)
+        test_loss /= len(d['loader'].dataset)
         print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'
-              .format(test_loss, correct, len(loader.dataset),
-                      100. * correct / len(loader.dataset)))
+              .format(test_loss, correct, len(d['loader'].dataset),
+                      100. * correct / len(d['loader'].dataset)))
 
 if __name__ == "__main__":
     d = prep()
-    model = Net().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
-    for i in range(0, 20):
-        train(d['loader'], i)
+    model = modelz.Net().to(device)
+    try:
+        model.load_state_dict(torch.load('digits.pth'))
+    except RuntimeError:
+        print('prob incompat model')
+    
+    optimizer = optim.Adam(model.parameters())
+    for i in range(0, 2):
+        train(d, i)
+        test(d)

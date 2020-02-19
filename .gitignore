@@ -4,3 +4,5 @@ __pycache__
 *.jpeg
 *.jpg
 *.png
+*.pth
+*.pt
