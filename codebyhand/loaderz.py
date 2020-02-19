@@ -13,14 +13,16 @@ from torch.utils.data import Dataset, DataLoader
 
 import modelz
 
-PATH = '/home/sippycups/programming/repos/usbtablet/assets/'
+PATH = "/home/sippycups/programming/repos/usbtablet/assets/"
 if __name__ == "__main__":
-    
-    edits = transforms.Compose([
-        transforms.Resize((28, 28),),
-        transforms.Grayscale(num_output_channels=1),
-        transforms.ToTensor(),
-    ])
+
+    edits = transforms.Compose(
+        [
+            transforms.Resize((28, 28),),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+        ]
+    )
 
     dataset = torchvision.datasets.ImageFolder(PATH, transform=edits)
 
@@ -29,7 +31,7 @@ if __name__ == "__main__":
     loader = DataLoader(dataset, batch_size=1)
 
     model = modelz.Net()
-    model.load_state_dict(torch.load('digits.pth'))
+    model.load_state_dict(torch.load("digits.pth"))
     x = x.view(1, -1)
     yhat = model(x).view(1, -1)
     print(yhat)
