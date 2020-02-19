@@ -5,11 +5,9 @@ cursive wont work for the bounding box grabber
 https://stackoverflow.com/questions/41940945/saving-canvas-from-tkinter-to-file
 
 """
-
-from tkinter import *
-from tkinter.colorchooser import askcolor
-
 import io
+import time
+
 import numpy as np
 
 import torch
@@ -17,6 +15,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 import torchvision
+
+from tkinter import *
+from tkinter.colorchooser import askcolor
 
 from PIL import Image, ImageTk
 
@@ -56,7 +57,36 @@ class Paint(object):
 
         self.optimizer = optim.Adadelta(self.model.parameters())
 
-        self.c = gen_canvas(self.root)
+        self.live_infer_button = Button(
+            self.root, text="toggle live infer", command=self.live_infer_toggle)
+        self.live_infer_button.grid(row=0, column=0)
+
+        self.infer_button = Button(self.root, text="infer", command=self.infer)
+        self.infer_button.grid(row=0, column=1)
+
+        self.info_button = Button(self.root, text="info", command=self.info)
+        self.info_button.grid(row=0, column=2)
+
+        self.erase_button = Button(
+            self.root, text="erase all", command=self.clear)
+        self.erase_button.grid(row=0, column=3)
+
+        self.auto_erase_button = Button(
+            self.root, text="auto_erase", command=self.toggle_auto_erase)
+        self.auto_erase_button.grid(row=0, column=4)
+
+        self.save_button = Button(self.root, text="save", command=self.save)
+        self.save_button.grid(row=0, column=5)
+
+        self.train_button = Button(
+            self.root, text="live_train", command=self.live_train)
+        self.train_button.grid(row=0, column=6)
+
+        self.c = Canvas(
+            self.root, bg=config["bg"], width=config['width'], height=config['height'])
+        self.c.grid(
+            row=1, columnspan=7,
+        )
 
         self.setup()
         self.root.mainloop()
@@ -130,24 +160,32 @@ class Paint(object):
         self.img = None
         self.c.delete("all")
 
-    def save(self):
+    def save(self, targets=None):
+            
         self.ps = self.c.postscript(colormode="gray")
         self.img = save_canvas(self.ps, save=True)
         self.chars = get_chars(self.img, self.state_bounds)
-        self.pil_chars = [save_char(char, str(i))
-                          for i, char in enumerate(self.chars)]
+
+        if targets:
+            self.pil_chars = [save_char(char, fn)
+                            for i, (char, fn) in enumerate(zip(self.chars, targets))]
+        else:
+            self.pil_chars = [save_char(char, str(i))
+                            for i, char in enumerate(self.chars)]
         self.infer()
 
     def info(self):
         print(f"state: {self.state}")
         print(f"chars: {self.chars}")
-
         print(f"state_bounds: {self.state_bounds}")
         print(f"num_strokes: {len(self.state)}")
-        if len(self.chars) > 0:
+
+        if self.chars:
             print(f"img shape: {self.img.shape}")
 
     def infer(self):
+        if len(self.chars) == 0:
+            self.save()
         pred_str = []
         for i, char in enumerate(self.pil_chars):
             x = loaderz.TO_MNIST(char)
@@ -161,78 +199,51 @@ class Paint(object):
         print(f'pred_str: {pred_str}\n')
 
     def live_train(self):
+
+        if len(self.chars) == 0:
+            self.save()
+
         print('type in what you wrote')
         x = input()
+
         if len(x) != len(self.chars):
             print(f'len(x): {len(x)}, len(chars): {len(self.chars)}')
             print('multi stroke chars not supported yet')
             return
+
         npclasses = np.array(mz.EMNIST_CLASSES)
         target_idxs = [np.where(npclasses == elt)[0] for elt in x]
-
-        # target_idxss = np.where(npclasses == x)
-
         print(target_idxs)
-        # print(target_idxss)
-
+        targets = []
         for char, target_idx in zip(self.chars, target_idxs):
-            char = Image.fromarray(char)
-            char = loaderz.TO_MNIST(char)
-            print(f'target_idxa{target_idx}')
+            data = np_to_emnist_tensor(char)[None, ...]
+
             target_idx = target_idx[0]
-            print(f'target_idxb{target_idx}')
-            
-            y_char = mz.EMNIST_CLASSES[target_idx]
+            target_char = mz.EMNIST_CLASSES[target_idx]
+
+            target = torch.tensor(target_idx).view(-1)
 
             self.optimizer.zero_grad()
-            print(char.shape)
-            yhat = self.model(char[None, ...])
+
+            yhat = self.model(data)
+
             pred_char = emnist_val(yhat)
-            print(f'pred_char:{pred_char}, target{y_char}')
-            print(f'pred_char:{yhat}, target{yhat.shape}')
-            
-            target = torch.tensor(target_idx).view(-1)
 
             loss = F.nll_loss(yhat, target)
             loss.backward()
-
+            
             self.optimizer.step()
+
+            print(f'target: "{target_char}" pred: "{pred_char}" loss: {loss}')
+            targets.append(target_char)
 
         torch.save(self.model.state_dict(), MODEL_FN)
         print(f"model saved to {MODEL_FN}")
+        self.save(targets=targets)
 
-def gen_button(root, text:str, fxn, column:int):
-    b = Button(
-        root, text=text, command=fxn)
-    b.grid(row=0, column=0)
-    return b
-
-def gen_canvas(root):
-
-
-    infer_button = Button(root, text="infer", command=infer)
-    infer_button.grid(row=0, column=1)
-
-    info_button = Button(root, text="info", command=info)
-    info_button.grid(row=0, column=2)
-
-    auto_erase_button = Button(
-        root, text="auto_erase", command=toggle_auto_erase)
-    auto_erase_button.grid(row=0, column=4)
-
-    save_button = Button(root, text="save", command=save)
-    save_button.grid(row=0, column=3)
-
-    train_button = Button(
-        root, text="live_train", command=live_train)
-    train_button.grid(row=0, column=5)
-
-    c = Canvas(
-        root, bg=config["bg"], width=config['width'], height=config['height'])
-    c.grid(
-        row=1, columnspan=6,
-    )
-    return c
+def np_to_emnist_tensor(char):
+    char = Image.fromarray(char)
+    return loaderz.TO_MNIST(char)
 
 def emnist_val(yhat):
     pred_idx = yhat.max(1, keepdim=True)[1]
