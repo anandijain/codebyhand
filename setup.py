@@ -19,7 +19,7 @@ setup(
         "torch",
         "torchaudio",
         "torchvision",
-        "Pillow"
+        "Pillow",
     ],  # external packages as dependencies
     python_requires=">=3.6",
 )

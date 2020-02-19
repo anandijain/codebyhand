@@ -9,3 +9,4 @@ codebyhand.egg-info/
 *.pt
 
 assets/*
+data/*

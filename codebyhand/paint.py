@@ -28,7 +28,7 @@ from codebyhand import loaderz
 from codebyhand import utilz
 
 
-MODEL_FN = f'{mz.SRC_PATH}convemnist2.pth'
+MODEL_FN = f"{mz.SRC_PATH}convemnist2.pth"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
@@ -57,10 +57,11 @@ class Paint(object):
         self.model = modelz.ConvNet(out_dim=62)
         self.model.load_state_dict(torch.load(MODEL_FN))
 
-        self.optimizer = optim.Adadelta(self.model.parameters())
+        self.optimizer = optim.Adadelta(self.model.parameters(), lr=1e-3)
 
         self.live_infer_button = Button(
-            self.root, text="toggle live infer", command=self.live_infer_toggle)
+            self.root, text="toggle live infer", command=self.live_infer_toggle
+        )
         self.live_infer_button.grid(row=0, column=0)
 
         self.infer_button = Button(self.root, text="infer", command=self.infer)
@@ -69,23 +70,25 @@ class Paint(object):
         self.info_button = Button(self.root, text="info", command=self.info)
         self.info_button.grid(row=0, column=2)
 
-        self.erase_button = Button(
-            self.root, text="erase all", command=self.clear)
+        self.erase_button = Button(self.root, text="erase all", command=self.clear)
         self.erase_button.grid(row=0, column=3)
 
         self.auto_erase_button = Button(
-            self.root, text="auto_erase", command=self.toggle_auto_erase)
+            self.root, text="auto_erase", command=self.toggle_auto_erase
+        )
         self.auto_erase_button.grid(row=0, column=4)
 
         self.save_button = Button(self.root, text="save", command=self.save)
         self.save_button.grid(row=0, column=5)
 
         self.train_button = Button(
-            self.root, text="live_train", command=self.live_train)
+            self.root, text="live_train", command=self.live_train
+        )
         self.train_button.grid(row=0, column=6)
 
         self.c = Canvas(
-            self.root, bg=config["bg"], width=config['width'], height=config['height'])
+            self.root, bg=config["bg"], width=config["width"], height=config["height"]
+        )
         self.c.grid(
             row=1, columnspan=7,
         )
@@ -169,11 +172,14 @@ class Paint(object):
         self.chars = utilz.get_chars(self.img, self.state_bounds)
 
         if targets:
-            self.pil_chars = [utilz.save_char(char, f'{time.asctime()}_{fn}')
-                              for i, (char, fn) in enumerate(zip(self.chars, targets))]
+            self.pil_chars = [
+                utilz.save_char(char, f"{time.asctime()}_{fn}")
+                for i, (char, fn) in enumerate(zip(self.chars, targets))
+            ]
         else:
-            self.pil_chars = [utilz.save_char(char, str(i))
-                              for i, char in enumerate(self.chars)]
+            self.pil_chars = [
+                utilz.save_char(char, str(i)) for i, char in enumerate(self.chars)
+            ]
         # self.infer()
 
     def info(self):
@@ -193,19 +199,19 @@ class Paint(object):
             pred = utilz.infer_char(self.model, char)
             pred_str.append(pred)
 
-        print(f'pred_str: {pred_str}')
+        print(f"pred_str: {pred_str}")
 
     def live_train(self):
 
         if len(self.chars) == 0:
             self.save()
 
-        print('type in what you wrote')
+        print("type in what you wrote")
         x = input()
 
         if len(x) != len(self.chars):
-            print(f'len(x): {len(x)}, len(chars): {len(self.chars)}')
-            print('multi stroke chars not supported yet')
+            print(f"len(x): {len(x)}, len(chars): {len(self.chars)}")
+            print("multi stroke chars not supported yet")
             return
 
         npclasses = np.array(mz.EMNIST_CLASSES)
@@ -220,7 +226,7 @@ class Paint(object):
         all_losses = []
 
         data_chars = list(map(utilz.np_to_emnist_tensor, self.chars))
-        
+
         for epoch in range(self.epochs_per_live):
             targets = []
             preds = []

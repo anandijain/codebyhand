@@ -33,7 +33,7 @@ def stroke_bounds(s: np.ndarray) -> np.ndarray:
 
 def crop_char(img: np.array, b: list, pad: int = 5, scale: float = 0.75):
     x0, x1, y0, y1 = [int(scale * coord) for coord in b]
-    return img[y0 - pad: y1 + pad, x0 - pad: x1 + pad]
+    return img[y0 - pad : y1 + pad, x0 - pad : x1 + pad]
 
 
 def get_chars(img, bounds):
@@ -55,4 +55,3 @@ def infer_char(model, char: Image):
         output = model(x[None, ...])
 
     return emnist_val(output)
-

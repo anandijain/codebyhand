@@ -21,17 +21,15 @@ TO_MNIST = transforms.Compose(
         transforms.Resize((28, 28)),
         transforms.Grayscale(num_output_channels=1),
         transforms.ToTensor(),
-        transforms.Normalize((0.1307,), (0.3081,))
+        transforms.Normalize((0.1307,), (0.3081,)),
     ]
 )
 
 
 if __name__ == "__main__":
 
-
     print(mz.IMGFOLDER_PATH)
-    dataset = torchvision.datasets.ImageFolder(
-        mz.IMGFOLDER_PATH, transform=TO_MNIST)
+    dataset = torchvision.datasets.ImageFolder(mz.IMGFOLDER_PATH, transform=TO_MNIST)
     x, y = dataset[3]
 
     loader = DataLoader(dataset, batch_size=1)

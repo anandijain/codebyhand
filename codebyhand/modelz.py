@@ -23,7 +23,9 @@ class Net(nn.Module):
 
 
 class ConvNet(nn.Module):
-    def __init__(self, out_dim=10, ):
+    def __init__(
+        self, out_dim=10,
+    ):
         super(ConvNet, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
@@ -41,14 +43,14 @@ class ConvNet(nn.Module):
 
         if use_dropout:
             x = self.dropout1(x)
-        
+
         x = torch.flatten(x, 1)
         x = self.fc1(x)
         x = F.relu(x)
-      
+
         if use_dropout:
             x = self.dropout2(x)
-      
+
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         output = F.log_softmax(x, dim=1)
