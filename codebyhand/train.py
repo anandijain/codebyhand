@@ -6,6 +6,7 @@ import torchvision
 from torchvision import transforms
 
 import modelz
+from codebyhand import macroz as mz
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
@@ -71,7 +72,7 @@ def train(d, epoch):
             )
 
     if SAVE_MODEL:
-        torch.save(model.state_dict(), MODEL_FN)
+        torch.save(model.state_dict(), f'{mz.SRC_PATH}MODEL_FN')
         print(f"model saved to {MODEL_FN}")
 
 
@@ -105,11 +106,11 @@ if __name__ == "__main__":
     d = prep()
     model = modelz.Net().to(device)
     try:
-        model.load_state_dict(torch.load("digits.pth"))
+        model.load_state_dict(torch.load(f"{mz.SRC_PATH}digits.pth"))
     except RuntimeError:
         print("prob incompat model")
 
     optimizer = optim.Adam(model.parameters())
-    for i in range(0, 2):
+    for i in range(0, 10):
         train(d, i)
-        test(d)
+        # test(d)

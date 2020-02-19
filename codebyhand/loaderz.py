@@ -13,18 +13,22 @@ from torch.utils.data import Dataset, DataLoader
 
 import modelz
 
-PATH = "/home/sippycups/programming/repos/usbtablet/assets/"
+PATH = "/home/sippycups/programming/repos/codebyhand/assets/"
+
+TO_MNIST = transforms.Compose(
+    [
+        transforms.Resize((28, 28)),
+        transforms.Grayscale(num_output_channels=1),
+        transforms.ToTensor(),
+    ]
+)
+
+
 if __name__ == "__main__":
 
-    edits = transforms.Compose(
-        [
-            transforms.Resize((28, 28),),
-            transforms.Grayscale(num_output_channels=1),
-            transforms.ToTensor(),
-        ]
-    )
 
-    dataset = torchvision.datasets.ImageFolder(PATH, transform=edits)
+
+    dataset = torchvision.datasets.ImageFolder(PATH, transform=TO_MNIST)
 
     x, y = dataset[3]
 

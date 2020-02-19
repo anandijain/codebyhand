@@ -16,11 +16,17 @@ import pyscreenshot as ImageGrab
 import torch
 import torchvision
 
+import codebyhand as cbh
+print(dir(cbh))
+
+
+
+from codebyhand import modelz
+from codebyhand import loaderz
+from codebyhand import macroz as mz
+
 
 config = {"width": 1400, "height": 500, "pen_radius": 5, "bg": "white"}
-
-PATH = "/home/sippycups/programming/repos/usbtablet/assets/imgs/"
-
 
 class Paint(object):
 
@@ -36,12 +42,14 @@ class Paint(object):
         self.img = None
         self.state_bounds = []
         self.chars = []
+        self.model = modelz.Net()
+        self.model.load_state_dict(torch.load(f'{mz.SRC_PATH}digits.pth'))
 
         self.pen_button = Button(self.root, text="pen", command=self.use_pen)
         self.pen_button.grid(row=0, column=0)
 
-        self.snap_button = Button(self.root, text="snap", command=self._snapCanvas)
-        self.snap_button.grid(row=0, column=1)
+        self.infer_button = Button(self.root, text="infer", command=self.infer)
+        self.infer_button.grid(row=0, column=1)
 
         self.info_button = Button(self.root, text="info", command=self.info)
         self.info_button.grid(row=0, column=2)
@@ -127,40 +135,23 @@ class Paint(object):
         self.ps = self.c.postscript(colormode="gray")
         self.img = save_canvas(self.ps, save=True)
         self.chars = get_chars(self.img, self.state_bounds)
-        [save_char(char, str(i)) for i, char in enumerate(self.chars)]
-
-        # print(f'img: {self.img}')
-
-    def _snapCanvas(self):
-        print("\n def _snapCanvas(self):")
-        canvas = self.info()  # Get Window Coordinates of Canvas
-        self.grabcanvas = ImageGrab.grab(bbox=canvas)
-        self.grabcanvas.show()
-
-    def _save(self):
-        self.grabcanvas.save("out.jpg")
+        self.pil_chars = [save_char(char, str(i)) for i, char in enumerate(self.chars)]
 
     def info(self):
-        # broken
         print(f"state: {self.state}")
         print(f"chars: {self.chars}")
 
         print(f"state_bounds: {self.state_bounds}")
         print(f"num_strokes: {len(self.state)}")
         print(f"img shape: {self.img.shape}")
-        print(f"self.cv.winfo_rootx() = {self.c.winfo_rootx()}")
-        print(f"self.c.winfo_rooty() = {self.c.winfo_rooty()}")
-        print(f"self.c.winfo_x() ={self.c.winfo_x()}")
-        print(f"self.c.winfo_y() ={self.c.winfo_y()}")
-        print(f"self.c.winfo_width() ={self.c.winfo_width()}")
-        print(f"self.c.winfo_height() ={self.c.winfo_height()}")
-        x = self.c.winfo_rootx() + self.c.winfo_x()
-        y = self.c.winfo_rooty() + self.c.winfo_y()
-        x1 = x + self.c.winfo_width()
-        y1 = y + self.c.winfo_height()
-        box = (x, y, x1, y1)
-        print("box = ", box)
-        return box
+
+    def infer(self):
+        for i, char in enumerate(self.pil_chars):
+            x = loaderz.TO_MNIST(char)
+            yhat = self.model(x.view(1, -1))
+            pred = yhat.max(1, keepdim=True)[1]
+            print(f'char{i} pred: {pred}')
+
 
 
 def norm_stroke(s: np.ndarray) -> np.ndarray:
@@ -176,6 +167,14 @@ def stroke_bounds(s: np.ndarray) -> np.ndarray:
 
     return (xmin, xmax), (ymin, ymax)
 
+def canvas_box(c:Canvas):
+    x = c.winfo_rootx() + c.winfo_x()
+    y = c.winfo_rooty() + c.winfo_y()
+    x1 = x + c.winfo_width()
+    y1 = y + c.winfo_height()
+    box = (x, y, x1, y1)
+    print("box = ", box)
+    return box
 
 def adj(n: int, m: int):
     return int((n - m) / 2)
@@ -191,7 +190,7 @@ def save_canvas(ps, fn="test", save=False):
     img = Image.open(io.BytesIO(ps.encode("utf-8")))
     if save:
         img.save(
-            f"{PATH}{fn}.jpg", "jpeg"
+            f"{mz.IMGS_PATH}{fn}.jpg", "jpeg"
         )  # , height=config['height'], width=config['width'])
 
     return np.asarray(img)
@@ -222,8 +221,14 @@ def save_char(char: np.array, fn: str):
     shape = char.shape
     print(f"char shape: {char.shape}")
     im = Image.fromarray(char)
-    im.save(f"{PATH}{fn}.png")
+    im.save(f"{mz.IMGS_PATH}{fn}.png")
+    return im
 
+def chars_to_mnist(chars:list):
+    # list np array (n, m, 3)
+    edits = loaderz.TO_MNIST
+    
+    
 
 if __name__ == "__main__":
     x = Paint()
