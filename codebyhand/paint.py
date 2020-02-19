@@ -123,6 +123,7 @@ class Paint(object):
         self.state.append(s)
         self.state_bounds.append(stroke_bounds(s))
         self.cur_stroke = []
+        self.save()
 
     def clear(self):
         self.chars = []
@@ -136,6 +137,7 @@ class Paint(object):
         self.img = save_canvas(self.ps, save=True)
         self.chars = get_chars(self.img, self.state_bounds)
         self.pil_chars = [save_char(char, str(i)) for i, char in enumerate(self.chars)]
+        self.infer()
 
     def info(self):
         print(f"state: {self.state}")
@@ -150,8 +152,7 @@ class Paint(object):
             x = loaderz.TO_MNIST(char)
             yhat = self.model(x.view(1, -1))
             pred = yhat.max(1, keepdim=True)[1]
-            print(f'char{i} pred: {pred}')
-
+            print(f'char{i} pred: {pred}\n yhat:{yhat}\n')
 
 
 def norm_stroke(s: np.ndarray) -> np.ndarray:
