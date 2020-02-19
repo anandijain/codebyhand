@@ -12,9 +12,9 @@ from codebyhand import loaderz
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
 
-BATCH_SIZE = 1
+BATCH_SIZE = 32
 
-MODEL_FN = "digits.pth"
+MODEL_FN = f"{mz.SRC_PATH}convdigits.pth"
 LOAD_MODEL = True
 SAVE_MODEL = True
 
@@ -33,12 +33,14 @@ def prep():
         emnist, batch_size=BATCH_SIZE, shuffle=True,
     )
 
-    model = modelz.Net().to(device)
+    model = modelz.ConvNet().to(device)
     try:
-        model.load_state_dict(torch.load(f"{mz.SRC_PATH}digits.pth"))
+        model.load_state_dict(torch.load(MODEL_FN))
         print(f'loaded model')
     except RuntimeError:
         print("prob incompat model")
+    except:
+        print('cant load, other reason')
 
     optimizer = optim.Adam(model.parameters())
     x, y = emnist[0]
@@ -56,9 +58,9 @@ def train(d, epoch):
     d['model'].train()
     for batch_idx, (data, target) in enumerate(d["loader"]):
         data, target = data.to(device), target.to(device)
-        data = data.view(-1, 784)
+        # data = data.view(-1, 784)
         d['optimizer'].zero_grad()
-        output = d['model'](data).view(-1, 10)
+        output = d['model'](data)# .view(-1, 10)
 
         loss = F.nll_loss(output, target)
         loss.backward()
@@ -75,7 +77,7 @@ def train(d, epoch):
             )
 
     if SAVE_MODEL:
-        torch.save(d['model'].state_dict(), f'{mz.SRC_PATH}{MODEL_FN}')
+        torch.save(d['model'].state_dict(), f'{MODEL_FN}')
         print(f"model saved to {MODEL_FN}")
 
 

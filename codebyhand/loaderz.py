@@ -11,15 +11,17 @@ from torchvision import transforms
 from torch.nn import functional as F
 from torch.utils.data import Dataset, DataLoader
 
-import modelz
+from codebyhand import modelz
+from codebyhand import loaderz
+from codebyhand import macroz as mz
 
-PATH = "/home/sippycups/programming/repos/codebyhand/assets/"
 
 TO_MNIST = transforms.Compose(
     [
         transforms.Resize((28, 28)),
         transforms.Grayscale(num_output_channels=1),
         transforms.ToTensor(),
+        transforms.Normalize((0.1307,), (0.3081,))
     ]
 )
 
@@ -27,18 +29,21 @@ TO_MNIST = transforms.Compose(
 if __name__ == "__main__":
 
 
-
-    dataset = torchvision.datasets.ImageFolder(PATH, transform=TO_MNIST)
-
+    print(mz.IMGFOLDER_PATH)
+    dataset = torchvision.datasets.ImageFolder(
+        mz.IMGFOLDER_PATH, transform=TO_MNIST)
     x, y = dataset[3]
 
     loader = DataLoader(dataset, batch_size=1)
 
-    model = modelz.Net()
-    model.load_state_dict(torch.load("digits.pth"))
-    x = x.view(1, -1)
-    yhat = model(x).view(1, -1)
-    print(yhat)
-    pred = yhat.max(1, keepdim=True)[1]
-    print(pred)
-    print(y)
+    model = modelz.ConvNet()
+    model.load_state_dict(torch.load(f"{mz.SRC_PATH}digits.pth"))
+    preds = {}
+    for i, (x, y) in enumerate(dataset):
+        x = x.view(1, -1)
+        yhat = model(x).view(1, -1)
+        pred = yhat.max(1, keepdim=True)[1]
+        preds[i] = pred
+        # print(f'yhat {yhat}')
+
+    print(preds)

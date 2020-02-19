@@ -42,8 +42,8 @@ class Paint(object):
         self.img = None
         self.state_bounds = []
         self.chars = []
-        self.model = modelz.Net()
-        self.model.load_state_dict(torch.load(f'{mz.SRC_PATH}digits.pth'))
+        self.model = modelz.ConvNet()
+        self.model.load_state_dict(torch.load(f'{mz.SRC_PATH}convdigits.pth'))
 
         self.pen_button = Button(self.root, text="pen", command=self.use_pen)
         self.pen_button.grid(row=0, column=0)
@@ -150,7 +150,7 @@ class Paint(object):
     def infer(self):
         for i, char in enumerate(self.pil_chars):
             x = loaderz.TO_MNIST(char)
-            yhat = self.model(x.view(1, -1))
+            yhat = self.model(x[None, ...])  # .view(1, -1))
             pred = yhat.max(1, keepdim=True)[1]
             print(f'char{i} pred: {pred}\n yhat:{yhat}\n')
 
