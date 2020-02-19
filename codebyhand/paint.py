@@ -17,13 +17,12 @@ import torch
 import torchvision
 
 import codebyhand as cbh
-print(dir(cbh))
-
-
 
 from codebyhand import modelz
 from codebyhand import loaderz
 from codebyhand import macroz as mz
+
+MODEL_FN = f'{mz.SRC_PATH}convemnist.pth'
 
 
 config = {"width": 1400, "height": 500, "pen_radius": 5, "bg": "white"}
@@ -42,11 +41,13 @@ class Paint(object):
         self.img = None
         self.state_bounds = []
         self.chars = []
-        self.model = modelz.ConvNet()
-        self.model.load_state_dict(torch.load(f'{mz.SRC_PATH}convdigits.pth'))
+        self.live_infer = True
 
-        self.pen_button = Button(self.root, text="pen", command=self.use_pen)
-        self.pen_button.grid(row=0, column=0)
+        self.model = modelz.ConvNet(out_dim=62)
+        self.model.load_state_dict(torch.load(MODEL_FN))
+
+        self.live_infer_button = Button(self.root, text="toggle live infer", command=self.live_infer_toggle)
+        self.live_infer_button.grid(row=0, column=0)
 
         self.infer_button = Button(self.root, text="infer", command=self.infer)
         self.infer_button.grid(row=0, column=1)
@@ -76,26 +77,27 @@ class Paint(object):
         self.line_width = config["pen_radius"]
         self.color = self.DEFAULT_COLOR
         self.eraser_on = False
-        self.active_button = self.pen_button
+        self.active_button = self.live_infer_button
         self.c.bind("<B1-Motion>", self.paint)
         self.c.bind("<ButtonRelease-1>", self.reset)
 
-    def use_pen(self):
-        self.activate_button(self.pen_button)
+    def live_infer_toggle(self):
+        if self.live_infer == True:
+            self.live_infer = False
+        else:
+            self.live_infer = True
 
     def choose_color(self):
         self.eraser_on = False
         self.color = askcolor(color=self.color)[1]
 
     def use_eraser(self):
-        # self.activate_button(self.eraser_button, eraser_mode=True)
         self.c.delete("all")
 
-    def activate_button(self, some_button, eraser_mode=False):
+    def activate_button(self, some_button):
         self.active_button.config(relief=RAISED)
         some_button.config(relief=SUNKEN)
         self.active_button = some_button
-        self.eraser_on = eraser_mode
 
     def paint(self, event):
         paint_color = "white" if self.eraser_on else self.color
@@ -123,7 +125,8 @@ class Paint(object):
         self.state.append(s)
         self.state_bounds.append(stroke_bounds(s))
         self.cur_stroke = []
-        self.save()
+        if self.live_infer:
+            self.save()
 
     def clear(self):
         self.chars = []
@@ -148,11 +151,15 @@ class Paint(object):
         print(f"img shape: {self.img.shape}")
 
     def infer(self):
+        pred_str = []
         for i, char in enumerate(self.pil_chars):
             x = loaderz.TO_MNIST(char)
             yhat = self.model(x[None, ...])  # .view(1, -1))
-            pred = yhat.max(1, keepdim=True)[1]
-            print(f'char{i} pred: {pred}\n yhat:{yhat}\n')
+            pred_idx = yhat.max(1, keepdim=True)[1]
+            pred = mz.EMNIST_CLASSES[pred_idx]
+            pred_str.append(pred)
+
+        print(f'pred_str: {pred_str}\n')
 
 
 def norm_stroke(s: np.ndarray) -> np.ndarray:
@@ -228,7 +235,7 @@ def save_char(char: np.array, fn: str):
 def chars_to_mnist(chars:list):
     # list np array (n, m, 3)
     edits = loaderz.TO_MNIST
-    
+
     
 
 if __name__ == "__main__":

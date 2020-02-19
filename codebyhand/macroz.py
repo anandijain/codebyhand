@@ -1,10 +1,74 @@
 import codebyhand
 
-SRC_PATH = codebyhand.__path__[0] + '/'
-PROJ_PATH = SRC_PATH + '../'
+SRC_PATH = codebyhand.__path__[0] + "/"
+PROJ_PATH = SRC_PATH + "../"
 print(SRC_PATH)
 
 IMGS_PATH = f"{PROJ_PATH}assets/imgs/"
 
 IMGFOLDER_PATH = f"{PROJ_PATH}assets/"
 
+EMNIST_CLASSES = [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "H",
+    "I",
+    "J",
+    "K",
+    "L",
+    "M",
+    "N",
+    "O",
+    "P",
+    "Q",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "X",
+    "Y",
+    "Z",
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "x",
+    "y",
+    "z",
+]

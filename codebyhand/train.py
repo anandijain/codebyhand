@@ -14,7 +14,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 BATCH_SIZE = 32
 
-MODEL_FN = f"{mz.SRC_PATH}convdigits.pth"
+MODEL_FN = f"{mz.SRC_PATH}convemnist.pth"
 LOAD_MODEL = True
 SAVE_MODEL = True
 
@@ -22,18 +22,21 @@ SAVE_MODEL = True
 LOG_INTERVAL = 250
 
 
-def prep():
+def prep(verbose=True):
 
-    # torchvision datasets emnist currently broken
-    emnist = torchvision.datasets.MNIST(
-        "/home/sippycups/D/datasets/", download=False, transform=loaderz.TO_MNIST
+    # torchvision datasets emnist currently broken, copy master torchvision mnist.py to local install to fix
+    emnist = torchvision.datasets.EMNIST(
+        "/home/sippycups/D/datasets/", split='byclass', download=False, transform=loaderz.TO_MNIST
     )
-
+    print(emnist.classes)
+    emnist.classes = sorted(emnist.classes)
+    print(emnist.classes)
+    num_classes = len(emnist.classes)
     data_loader = torch.utils.data.DataLoader(
-        emnist, batch_size=BATCH_SIZE, shuffle=True,
+        emnist, batch_size=BATCH_SIZE, shuffle=False,
     )
 
-    model = modelz.ConvNet().to(device)
+    model = modelz.ConvNet(out_dim=num_classes).to(device)
     try:
         model.load_state_dict(torch.load(MODEL_FN))
         print(f'loaded model')
@@ -42,6 +45,7 @@ def prep():
     except:
         print('cant load, other reason')
 
+    
     optimizer = optim.Adam(model.parameters())
     x, y = emnist[0]
 
@@ -51,6 +55,8 @@ def prep():
         'model': model,
         'optimizer': optimizer
     }
+    if verbose:
+        print(d)
     return d
 
 
