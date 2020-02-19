@@ -16,6 +16,16 @@ i want to code with a pen tablet, but there are no good open source models that 
 
 * provide labels to what you write and update the weights to the EMNIST model
 
+## Get and Use
+
+```bash
+git clone https://github.com/anandijain/codebyhand
+cd codebyhand
+pip install -e . [--user]
+python train.py
+python paint.py
+```
+
 ## TODO/GOAL more feasible
 
 * save images for new labeled data given by user, ideally save pixel path too
