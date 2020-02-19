@@ -21,11 +21,12 @@ from tkinter.colorchooser import askcolor
 
 from PIL import Image, ImageTk
 
-import codebyhand as cbh
+from codebyhand import macroz as mz
 
 from codebyhand import modelz
 from codebyhand import loaderz
-from codebyhand import macroz as mz
+from codebyhand import utilz
+
 
 MODEL_FN = f'{mz.SRC_PATH}convemnist2.pth'
 
@@ -51,6 +52,7 @@ class Paint(object):
         self.chars = []
         self.live_infer = False
         self.auto_erase = False
+        self.epochs_per_live = 3
 
         self.model = modelz.ConvNet(out_dim=62)
         self.model.load_state_dict(torch.load(MODEL_FN))
@@ -146,7 +148,7 @@ class Paint(object):
         self.old_x, self.old_y = None, None
         s = np.array(self.cur_stroke)
         self.state.append(s)
-        self.state_bounds.append(stroke_bounds(s))
+        self.state_bounds.append(utilz.stroke_bounds(s))
         self.cur_stroke = []
         if self.live_infer:
             self.save()
@@ -161,18 +163,18 @@ class Paint(object):
         self.c.delete("all")
 
     def save(self, targets=None):
-            
+
         self.ps = self.c.postscript(colormode="gray")
         self.img = save_canvas(self.ps, save=True)
-        self.chars = get_chars(self.img, self.state_bounds)
+        self.chars = utilz.get_chars(self.img, self.state_bounds)
 
         if targets:
-            self.pil_chars = [save_char(char, fn)
-                            for i, (char, fn) in enumerate(zip(self.chars, targets))]
+            self.pil_chars = [utilz.save_char(char, f'{time.asctime()}_{fn}')
+                              for i, (char, fn) in enumerate(zip(self.chars, targets))]
         else:
-            self.pil_chars = [save_char(char, str(i))
-                            for i, char in enumerate(self.chars)]
-        self.infer()
+            self.pil_chars = [utilz.save_char(char, str(i))
+                              for i, char in enumerate(self.chars)]
+        # self.infer()
 
     def info(self):
         print(f"state: {self.state}")
@@ -188,15 +190,10 @@ class Paint(object):
             self.save()
         pred_str = []
         for i, char in enumerate(self.pil_chars):
-            x = loaderz.TO_MNIST(char)
-
-            with torch.no_grad():
-                yhat = self.model(x[None, ...])  # .view(1, -1))
-
-            pred = emnist_val(yhat)
+            pred = utilz.infer_char(self.model, char)
             pred_str.append(pred)
 
-        print(f'pred_str: {pred_str}\n')
+        print(f'pred_str: {pred_str}')
 
     def live_train(self):
 
@@ -212,56 +209,49 @@ class Paint(object):
             return
 
         npclasses = np.array(mz.EMNIST_CLASSES)
-        target_idxs = [np.where(npclasses == elt)[0] for elt in x]
-        print(target_idxs)
-        targets = []
-        for char, target_idx in zip(self.chars, target_idxs):
-            data = np_to_emnist_tensor(char)[None, ...]
+        target_idxs = []
+        for elt in x:
+            idx = np.where(npclasses == elt)[0][0]
+            target_idxs.append(torch.tensor(idx).view(-1))
 
-            target_idx = target_idx[0]
-            target_char = mz.EMNIST_CLASSES[target_idx]
+        results = {}
+        all_targets = []
+        all_preds = []
+        all_losses = []
 
-            target = torch.tensor(target_idx).view(-1)
+        data_chars = list(map(utilz.np_to_emnist_tensor, self.chars))
+        
+        for epoch in range(self.epochs_per_live):
+            targets = []
+            preds = []
+            losses = []
+            for char, target in zip(data_chars, target_idxs):
+                target_char = mz.EMNIST_CLASSES[target]
+                self.optimizer.zero_grad()
+                output = self.model(char)
+                pred_char = utilz.emnist_val(output)
+                loss = F.nll_loss(output, target)
+                loss.backward()
+                self.optimizer.step()
 
-            self.optimizer.zero_grad()
+                losses.append(loss.item())
+                targets.append(target_char)
+                preds.append(pred_char)
 
-            yhat = self.model(data)
+            all_targets += targets
+            all_preds += preds
+            all_losses += losses
 
-            pred_char = emnist_val(yhat)
+            results[epoch] = list(zip(targets, preds, losses))
 
-            loss = F.nll_loss(yhat, target)
-            loss.backward()
-            
-            self.optimizer.step()
-
-            print(f'target: "{target_char}" pred: "{pred_char}" loss: {loss}')
-            targets.append(target_char)
+        print(all_targets)
+        res = list(zip(all_targets, all_preds, all_losses))
+        for elt in res:
+            print(elt)
 
         torch.save(self.model.state_dict(), MODEL_FN)
         print(f"model saved to {MODEL_FN}")
         self.save(targets=targets)
-
-def np_to_emnist_tensor(char):
-    char = Image.fromarray(char)
-    return loaderz.TO_MNIST(char)
-
-def emnist_val(yhat):
-    pred_idx = yhat.max(1, keepdim=True)[1]
-    pred = mz.EMNIST_CLASSES[pred_idx]
-    return pred
-
-
-def norm_stroke(s: np.ndarray) -> np.ndarray:
-    return s - s[0]
-
-
-def stroke_bounds(s: np.ndarray) -> np.ndarray:
-    xmin = s[:, 0].min()
-    xmax = s[:, 0].max()
-
-    ymin = s[:, 1].min()
-    ymax = s[:, 1].max()
-    return [xmin, xmax, ymin, ymax]
 
 
 def save_canvas(ps, fn="test", save=False):
@@ -270,23 +260,6 @@ def save_canvas(ps, fn="test", save=False):
     if save:
         img.save(f"{mz.IMGS_PATH}{fn}.jpg", "jpeg")
     return np.asarray(img)
-
-
-def crop_char(img: np.array, b: list, pad: int = 5, scale: float = 0.75):
-    x0, x1, y0, y1 = [int(scale * coord) for coord in b]
-    return img[y0 - pad: y1 + pad, x0 - pad: x1 + pad]
-
-
-def get_chars(img, bounds):
-    return [crop_char(img, b) for b in bounds]
-
-
-def save_char(char: np.array, fn: str):
-    shape = char.shape
-    im = Image.fromarray(char)
-
-    im.save(f"{mz.IMGS_PATH}{fn}.png")
-    return im
 
 
 if __name__ == "__main__":

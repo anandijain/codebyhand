@@ -5,9 +5,9 @@ import torch.optim as optim
 import torchvision
 from torchvision import transforms
 
-from codebyhand import modelz
 from codebyhand import macroz as mz
 from codebyhand import loaderz
+from codebyhand import utilz
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
@@ -15,9 +15,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 128
 
 MODEL_FN = f"{mz.SRC_PATH}convemnist2.pth"
-# LOAD_MODEL = True
-SAVE_MODEL = True
 
+LOAD_MODEL = True
+SAVE_MODEL = True
 
 LOG_INTERVAL = 250
 
@@ -26,24 +26,24 @@ def prep(verbose=True):
 
     # torchvision datasets emnist currently broken, copy master torchvision mnist.py to local install to fix
     emnist = torchvision.datasets.EMNIST(
-        "/home/sippycups/D/datasets/", split='byclass', download=False, transform=loaderz.TO_MNIST
+        "/home/sippycups/D/datasets/", split='byclass', download=False, transform=cbh.loaderz.TO_MNIST
     )
-    print(emnist.classes)
     emnist.classes = sorted(emnist.classes)
-    print(emnist.classes)
     num_classes = len(emnist.classes)
+
     data_loader = torch.utils.data.DataLoader(
-        emnist, batch_size=BATCH_SIZE, shuffle=False,
+        emnist, batch_size=BATCH_SIZE, shuffle=True,
     )
 
-    model = modelz.ConvNet(out_dim=num_classes).to(device)
-    try:
-        model.load_state_dict(torch.load(MODEL_FN))
-        print(f'loaded model')
-    except RuntimeError:
-        print("prob incompat model")
-    except:
-        print('cant load, other reason')
+    model = cbh.modelz.ConvNet(out_dim=num_classes).to(device)
+    if LOAD_MODEL:
+        try:
+            model.load_state_dict(torch.load(MODEL_FN))
+            print(f'loaded model')
+        except RuntimeError:
+            print("prob incompat model")
+        except:
+            print('cant load, other reason')
 
     
     optimizer = optim.Adadelta(model.parameters())
@@ -60,17 +60,27 @@ def prep(verbose=True):
     return d
 
 
-def train(d, epoch):
+def train_epoch(d, epoch):
     d['model'].train()
+    targets = []
+    preds = []
     for batch_idx, (data, target) in enumerate(d["loader"]):
         data, target = data.to(device), target.to(device)
-        # data = data.view(-1, 784)
+
+        target_char = mz.EMNIST_CLASSES[target]
+
         d['optimizer'].zero_grad()
         output = d['model'](data, use_dropout=True)# .view(-1, 10)
 
         loss = F.nll_loss(output, target)
         loss.backward()
         d['optimizer'].step()
+
+        pred_char = cbh.utilz.emnist_val(output)
+
+        targets.append(target_char)
+        preds.append(pred_char)
+        
         if batch_idx % LOG_INTERVAL == 0:
             print(
                 "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
@@ -87,7 +97,7 @@ def train(d, epoch):
         print(f"model saved to {MODEL_FN}")
 
 
-def test(d):
+def test_epoch(d):
     with torch.no_grad():
         d['model'].eval()
         test_loss = 0
@@ -116,5 +126,5 @@ def test(d):
 if __name__ == "__main__":
     d = prep()
     for i in range(0, 4):
-        train(d, i)
+        train_epoch(d, i)
         # test(d)
