@@ -120,6 +120,6 @@ def test_epoch(d):
 
 if __name__ == "__main__":
     d = prep()
-    for i in range(0, 4):
+    for i in range(0, 1):
         train_epoch(d, i)
         # test(d)
