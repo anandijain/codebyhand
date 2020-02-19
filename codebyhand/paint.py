@@ -116,7 +116,7 @@ class Paint(object):
         self.color = askcolor(color=self.color)[1]
 
     def toggle_auto_erase(self):
-        if self.auto_erase == True:
+        if self.auto_erase:
             self.auto_erase = False
         else:
             self.auto_erase = True
@@ -153,6 +153,7 @@ class Paint(object):
         self.state.append(s)
         self.state_bounds.append(utilz.stroke_bounds(s))
         self.cur_stroke = []
+
         if self.live_infer:
             self.infer()
         if self.auto_erase:
@@ -162,6 +163,7 @@ class Paint(object):
         self.chars = []
         self.state_bounds = []
         self.state = []
+
         self.img = None
         self.c.delete("all")
 
@@ -180,7 +182,6 @@ class Paint(object):
             self.pil_chars = [
                 utilz.save_char(char, str(i)) for i, char in enumerate(self.chars)
             ]
-        # self.infer()
 
     def info(self):
         print(f"state: {self.state}")
@@ -195,6 +196,7 @@ class Paint(object):
         if len(self.chars) == 0:
             self.save()
         pred_str = []
+
         for i, char in enumerate(self.pil_chars):
             pred = utilz.infer_char(self.model, char)
             pred_str.append(pred)
