@@ -13,6 +13,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
 
 import torchvision
 
@@ -26,6 +27,7 @@ from codebyhand import macroz as mz
 from codebyhand import modelz
 from codebyhand import loaderz
 from codebyhand import utilz
+from codebyhand import train
 
 
 MODEL_FN = f"{mz.SRC_PATH}convemnist2.pth"
@@ -54,7 +56,7 @@ class Paint(object):
         self.auto_erase = False
         self.epochs_per_live = 3
 
-        self.model = modelz.ConvNet(out_dim=62)
+        self.model = modelz.ConvNet(out_dim=62).to(device)
         self.model.load_state_dict(torch.load(MODEL_FN))
 
         self.optimizer = optim.Adadelta(self.model.parameters(), lr=1e-3)
@@ -70,7 +72,8 @@ class Paint(object):
         self.info_button = Button(self.root, text="info", command=self.info)
         self.info_button.grid(row=0, column=2)
 
-        self.erase_button = Button(self.root, text="erase all", command=self.clear)
+        self.erase_button = Button(
+            self.root, text="erase all", command=self.clear)
         self.erase_button.grid(row=0, column=3)
 
         self.auto_erase_button = Button(
@@ -204,71 +207,72 @@ class Paint(object):
         print(f"pred_str: {pred_str}")
 
     def live_train(self):
-
         if len(self.chars) == 0:
             self.save()
 
         print("type in what you wrote")
         x = input()
-
         if len(x) != len(self.chars):
             print(f"len(x): {len(x)}, len(chars): {len(self.chars)}")
             print("multi stroke chars not supported yet")
             return
+            
+        target_idxs, target_chars = target_info(x)
 
-        npclasses = np.array(mz.EMNIST_CLASSES)
-        target_idxs = []
-        for elt in x:
-            idx = np.where(npclasses == elt)[0][0]
-            target_idxs.append(torch.tensor(idx).view(-1))
+        print(f'target idxs: {target_idxs}')
+        print(f'target chars: {target_chars}')
+        data_chars = list(map(utilz.np_to_emnist_tensor, self.chars))
+        data = list(zip(data_chars, target_idxs))
+        dataset = loaderz.Chars(data)
+        x, y = dataset[0][0], dataset[0][1]
+        
+        print(f'example: {x}')
+        print(f'example: {y}')
+        loader = DataLoader(dataset)
 
-        results = {}
-        all_targets = []
+        
+        self.d = {'data': dataset, 'loader': loader,
+                  'model': self.model, 'optimizer': self.optimizer}
+                  
         all_preds = []
         all_losses = []
 
-        data_chars = list(map(utilz.np_to_emnist_tensor, self.chars))
-
         for epoch in range(self.epochs_per_live):
-            targets = []
-            preds = []
-            losses = []
-            for char, target in zip(data_chars, target_idxs):
-                target_char = mz.EMNIST_CLASSES[target]
-                self.optimizer.zero_grad()
-                output = self.model(char)
-                pred_char = utilz.emnist_val(output)
-                loss = F.nll_loss(output, target)
-                loss.backward()
-                self.optimizer.step()
-
-                losses.append(loss.item())
-                targets.append(target_char)
-                preds.append(pred_char)
-
-            all_targets += targets
-            all_preds += preds
+            preds, losses = train.train_epoch(
+                self.d, epoch, model_fn=MODEL_FN, return_preds=True)
+            pred_chars = map(utilz.emnist_val, preds)
             all_losses += losses
+            all_preds += pred_chars
 
-            results[epoch] = list(zip(targets, preds, losses))
+        results = list(
+            zip(target_chars * self.epochs_per_live, all_preds, all_losses))
 
-        print(all_targets)
-        res = list(zip(all_targets, all_preds, all_losses))
-        for elt in res:
-            print(elt)
+        print(f'results: {results}')
 
         torch.save(self.model.state_dict(), MODEL_FN)
         print(f"model saved to {MODEL_FN}")
-        self.save(targets=targets)
+        self.save(targets=target_chars)
 
 
 def save_canvas(ps, fn="test", save=False):
     img = Image.open(io.BytesIO(ps.encode("utf-8")))
-
     if save:
-        img.save(f"{mz.IMGS_PATH}{fn}.jpg", "jpeg")
+        img.save(f"{mz.IMGS_PATH}{time.asctime()}{fn}.jpg", "jpeg")
     return np.asarray(img)
 
+
+def target_info(s: str):
+    classes = np.array(mz.EMNIST_CLASSES)
+
+    target_idxs = []
+    target_chars = []
+
+    for elt in s:
+        idx = np.where(classes == elt)[0][0]
+        target_idxs.append(torch.tensor(idx)) #.view(-1))
+        target_chars.append(mz.EMNIST_CLASSES[idx])
+
+    return target_idxs, target_chars
 
 if __name__ == "__main__":
     x = Paint()
