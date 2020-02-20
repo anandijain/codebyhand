@@ -9,7 +9,7 @@ from codebyhand import macroz as mz
 
 def np_to_emnist_tensor(char):
     char = Image.fromarray(char)
-    return loaderz.TO_MNIST(char)[None, ...]
+    return loaderz.TO_MNIST(char)
 
 
 def emnist_val(yhat):
