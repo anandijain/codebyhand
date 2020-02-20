@@ -23,20 +23,25 @@ SAVE_MODEL = True
 LOG_INTERVAL = 250
 
 
-def prep(verbose=True):
-
+def get_mnist():
     # torchvision datasets emnist currently broken, copy master torchvision mnist.py to local install to fix
     emnist = torchvision.datasets.EMNIST(
         mz.DATA_DIR, split="byclass", download=True, transform=loaderz.TO_MNIST
     )
     emnist.classes = sorted(emnist.classes)
-    num_classes = len(emnist.classes)
+    return emnist
+
+
+def prep(data, verbose=True):
+
+    num_classes = len(data.classes)
 
     data_loader = torch.utils.data.DataLoader(
-        emnist, batch_size=BATCH_SIZE, shuffle=True,
+        data, batch_size=BATCH_SIZE, shuffle=True,
     )
 
     model = modelz.ConvNet(out_dim=num_classes).to(device)
+
     if LOAD_MODEL:
         try:
             model.load_state_dict(torch.load(MODEL_FN))
@@ -47,22 +52,20 @@ def prep(verbose=True):
             print("cant load, other reason")
 
     optimizer = optim.Adadelta(model.parameters())
-    x, y = emnist[0]
 
-    d = {"data": emnist, "loader": data_loader, "model": model, "optimizer": optimizer}
+    d = {"data": data, "loader": data_loader,
+         "model": model, "optimizer": optimizer}
     if verbose:
         print(d)
     return d
 
 
-def train_epoch(d, epoch):
+def train_epoch(d, epoch, save_model=SAVE_MODEL, model_fn=MODEL_FN, return_preds=False):
     d["model"].train()
-    targets = []
+    losses = []
     preds = []
     for batch_idx, (data, target) in enumerate(d["loader"]):
         data, target = data.to(device), target.to(device)
-
-        # target_char = mz.EMNIST_CLASSES[target]
 
         d["optimizer"].zero_grad()
         output = d["model"](data, use_dropout=True)  # .view(-1, 10)
@@ -71,10 +74,9 @@ def train_epoch(d, epoch):
         loss.backward()
         d["optimizer"].step()
 
-        # pred_char = utilz.emnist_val(output)
-
-        # targets.append(target_char)
-        # preds.append(pred_char)
+        if return_preds:
+            preds.append(output)
+            losses.append(loss.item())
 
         if batch_idx % LOG_INTERVAL == 0:
             print(
@@ -88,8 +90,11 @@ def train_epoch(d, epoch):
             )
 
     if SAVE_MODEL:
-        torch.save(d["model"].state_dict(), MODEL_FN)
-        print(f"model saved to {MODEL_FN}")
+        torch.save(d["model"].state_dict(), model_fn)
+        print(f"model saved to {model_fn}")
+
+    if return_preds:
+        return preds, losses
 
 
 def test_epoch(d):
@@ -119,7 +124,7 @@ def test_epoch(d):
 
 
 if __name__ == "__main__":
-    d = prep()
+    d = prep(data=get_mnist())
     for i in range(0, 1):
         train_epoch(d, i)
         # test(d)
