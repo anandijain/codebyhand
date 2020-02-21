@@ -72,10 +72,13 @@ def save_char(char: np.array, fn: str):
     im.save(f"{mz.IMGS_PATH}{fn}.png")
     return im
 
-def save_labeled_char(char: np.array, label:str, fn: str):
+def save_labeled_char(char: np.array, label:str, fn: str, verbose=False):
     shape = char.shape
     im = Image.fromarray(char)
-    im.save(f"{mz.ASSETS_PATH}/{label}/{fn}.png")
+    save_fn = f"{mz.MYEMNIST}{label}/{fn}.png"
+    im.save(save_fn)
+    if verbose:
+        print(f'saved to {save_fn}')
     return im
 
 

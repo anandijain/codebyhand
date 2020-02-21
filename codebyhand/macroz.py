@@ -7,6 +7,8 @@ DATA_DIR = f"{PROJ_PATH}data/"
 ASSETS_PATH = f"{PROJ_PATH}assets/"
 IMGS_PATH = f"{PROJ_PATH}assets/imgs/"
 
+MYEMNIST = f"{ASSETS_PATH}EMNIST/"
+
 EMNIST_CLASSES = [
     "0",
     "1",

@@ -32,23 +32,26 @@ from codebyhand import utilz
 from codebyhand import train
 
 MODEL_FN = f"{mz.SRC_PATH}spatial_transformer_net.pth"
-VISUALIZE = True
+VISUALIZE = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
 
-config = {"width": 1400, "height": 500, "pen_radius": 5, "bg": "white"}
+config = {
+    "width": 1400, 
+    "height": 500,
+    "pen_radius": 8, 
+    "bg": "white", 
+    "pen": "black",
+    "epochs" : 3
+}
 plt.ion()
 
 
 class Paint(object):
 
-    DEFAULT_PEN_SIZE = 8.0
-    DEFAULT_COLOR = "black"
-
     def __init__(self):
         self.root = Tk()
-
         self.state = []
         self.state_dict = {}
         self.cur_stroke = []
@@ -57,7 +60,6 @@ class Paint(object):
         self.chars = []
         self.live_infer = False
         self.auto_erase = False
-        self.epochs_per_live = 3
 
         self.model = modelz.SpatialTransformerNet(out_dim=62).to(device)
         self.model.load_state_dict(torch.load(MODEL_FN))
@@ -106,7 +108,7 @@ class Paint(object):
         self.old_x = None
         self.old_y = None
         self.line_width = config["pen_radius"]
-        self.color = self.DEFAULT_COLOR
+        self.color = config['pen']
         self.active_button = self.live_infer_button
         self.c.bind("<B1-Motion>", self.paint)
         self.c.bind("<ButtonRelease-1>", self.reset)
@@ -179,12 +181,12 @@ class Paint(object):
         self.img = save_canvas(self.ps, save=True)
         self.chars = utilz.get_chars(self.img, self.state_bounds)
 
-        if targets:
-            
+        if targets is not None:
             self.pil_chars = [
                 utilz.save_labeled_char(char, t, f"{time.asctime()}_{t}")
-                for i, (char, t) in enumerate(zip(self.chars, targets))
+                for char, t in zip(self.chars, targets)
             ]
+
         else:
             self.pil_chars = [
                 utilz.save_char(char, str(i)) for i, char in enumerate(self.chars)
@@ -223,10 +225,10 @@ class Paint(object):
             "optimizer": self.optimizer,
         }
         all_preds, all_losses = train.train(
-            self.d, self.epochs_per_live, True, MODEL_FN
+            self.d, config['epochs'], True, MODEL_FN
         )
         results = list(
-            zip(target_chars * self.epochs_per_live, all_preds, all_losses))
+            zip(target_chars * config['epochs'], all_preds, all_losses))
 
         print("results:")
         for elt in results:
