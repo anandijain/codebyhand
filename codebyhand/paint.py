@@ -16,6 +16,8 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
 import torchvision
+import matplotlib.pyplot as plt
+
 
 from tkinter import *
 from tkinter.colorchooser import askcolor
@@ -29,18 +31,19 @@ from codebyhand import loaderz
 from codebyhand import utilz
 from codebyhand import train
 
-
-MODEL_FN = f"{mz.SRC_PATH}convemnist2.pth"
+MODEL_FN = f"{mz.SRC_PATH}spatial_transformer_net.pth"
+VISUALIZE = True
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
 
 config = {"width": 1400, "height": 500, "pen_radius": 5, "bg": "white"}
+plt.ion()
 
 
 class Paint(object):
 
-    DEFAULT_PEN_SIZE = 5.0
+    DEFAULT_PEN_SIZE = 8.0
     DEFAULT_COLOR = "black"
 
     def __init__(self):
@@ -56,10 +59,10 @@ class Paint(object):
         self.auto_erase = False
         self.epochs_per_live = 3
 
-        self.model = modelz.ConvNet(out_dim=62).to(device)
+        self.model = modelz.SpatialTransformerNet(out_dim=62).to(device)
         self.model.load_state_dict(torch.load(MODEL_FN))
 
-        self.optimizer = optim.Adadelta(self.model.parameters(), lr=1e-3)
+        self.optimizer = optim.Adadelta(self.model.parameters())
 
         self.live_infer_button = Button(
             self.root, text="toggle live infer", command=self.live_infer_toggle
@@ -177,9 +180,10 @@ class Paint(object):
         self.chars = utilz.get_chars(self.img, self.state_bounds)
 
         if targets:
+            
             self.pil_chars = [
-                utilz.save_char(char, f"{time.asctime()}_{fn}")
-                for i, (char, fn) in enumerate(zip(self.chars, targets))
+                utilz.save_labeled_char(char, t, f"{time.asctime()}_{t}")
+                for i, (char, t) in enumerate(zip(self.chars, targets))
             ]
         else:
             self.pil_chars = [
@@ -201,7 +205,7 @@ class Paint(object):
         pred_str = []
 
         for i, char in enumerate(self.pil_chars):
-            pred = utilz.infer_char(self.model, char)
+            pred = utilz.infer_char(self.model, char, device)
             pred_str.append(pred)
 
         print(f"pred_str: {pred_str}")
@@ -210,44 +214,28 @@ class Paint(object):
         if len(self.chars) == 0:
             self.save()
 
-        print("type in what you wrote")
-        x = input()
-        if len(x) != len(self.chars):
-            print(f"len(x): {len(x)}, len(chars): {len(self.chars)}")
-            print("multi stroke chars not supported yet")
-            return
-
-        target_idxs, target_chars = target_info(x)
-
-        print(f'target idxs: {target_idxs}')
-        print(f'target chars: {target_chars}')
-        data_chars = list(map(utilz.np_to_emnist_tensor, self.chars))
-        data = list(zip(data_chars, target_idxs))
-        dataset = loaderz.Chars(data)
-        x, y = dataset[0][0], dataset[0][1]
-        
-        print(f'example: {x}')
-        print(f'example: {y}')
-        loader = DataLoader(dataset)
-
-        
-        self.d = {'data': dataset, 'loader': loader,
-                  'model': self.model, 'optimizer': self.optimizer}
-                  
-        all_preds = []
-        all_losses = []
-
-        for epoch in range(self.epochs_per_live):
-            preds, losses = train.train_epoch(
-                self.d, epoch, model_fn=MODEL_FN, return_preds=True)
-            pred_chars = map(utilz.emnist_val, preds)
-            all_losses += losses
-            all_preds += pred_chars
-
+        target_idxs, target_chars = get_user_labels(self.chars)
+        dataset, loader = chars_to_data(self.chars, target_idxs)
+        self.d = {
+            "data": dataset,
+            "loader": loader,
+            "model": self.model,
+            "optimizer": self.optimizer,
+        }
+        all_preds, all_losses = train.train(
+            self.d, self.epochs_per_live, True, MODEL_FN
+        )
         results = list(
             zip(target_chars * self.epochs_per_live, all_preds, all_losses))
 
-        print(f'results: {results}')
+        print("results:")
+        for elt in results:
+            print(elt)
+
+        if VISUALIZE:
+            visualize_stn(self.d)
+            plt.ioff()
+            plt.show()
 
         torch.save(self.model.state_dict(), MODEL_FN)
         print(f"model saved to {MODEL_FN}")
@@ -257,7 +245,7 @@ class Paint(object):
 def save_canvas(ps, fn="test", save=False):
     img = Image.open(io.BytesIO(ps.encode("utf-8")))
     if save:
-        img.save(f"{mz.IMGS_PATH}{time.asctime()}{fn}.jpg", "jpeg")
+        img.save(f"{mz.IMGS_PATH}{time.asctime()}{fn}.png", "png")
     return np.asarray(img)
 
 
@@ -267,11 +255,68 @@ def target_info(s: str):
     target_chars = []
     for elt in s:
         idx = np.where(classes == elt)[0][0]
-        target_idxs.append(torch.tensor(idx)) #.view(-1))
+        target_idxs.append(torch.tensor(idx))  # .view(-1))
         target_chars.append(mz.EMNIST_CLASSES[idx])
     return target_idxs, target_chars
 
+
 # def to_points(state:list):
+def chars_to_data(chars, target_idxs):
+
+    data_chars = list(map(utilz.np_to_emnist_tensor, chars))
+    data = list(zip(data_chars, target_idxs))
+    dataset = loaderz.Chars(data)
+    # x, y = dataset[0][0], dataset[0][1]
+
+    # print(f'example: {x}')
+    # print(f'example: {y}')
+    loader = DataLoader(dataset)
+    return dataset, loader
+
+
+def get_user_labels(chars):
+    print("type in what you wrote")
+    x = input()
+    if len(x) != len(chars):
+        print(f"len(x): {len(x)}, len(chars): {len(chars)}")
+        print("multi stroke chars not supported yet")
+        return
+
+    target_idxs, target_chars = target_info(x)
+    return target_idxs, target_chars
+
+
+def convert_image_np(inp):
+    """Convert a Tensor to numpy image."""
+    inp = inp.numpy().transpose((1, 2, 0))
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    inp = std * inp + mean
+    inp = np.clip(inp, 0, 1)
+    return inp
+
+
+def visualize_stn(d):
+    with torch.no_grad():
+        # Get a batch of training data
+        data = next(iter(d['loader']))[0].to(device)
+
+        input_tensor = data.cpu()
+        transformed_input_tensor = d['model'].stn(data).cpu()
+
+        in_grid = convert_image_np(torchvision.utils.make_grid(input_tensor))
+
+        out_grid = convert_image_np(
+            torchvision.utils.make_grid(transformed_input_tensor)
+        )
+
+        # Plot the results side-by-side
+        f, axarr = plt.subplots(1, 2)
+        axarr[0].imshow(in_grid)
+        axarr[0].set_title("Dataset Images")
+
+        axarr[1].imshow(out_grid)
+        axarr[1].set_title("Transformed Images")
 
 
 if __name__ == "__main__":

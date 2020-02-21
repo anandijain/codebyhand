@@ -4,7 +4,7 @@ SRC_PATH = codebyhand.__path__[0] + "/"
 PROJ_PATH = SRC_PATH + "../"
 
 DATA_DIR = f"{PROJ_PATH}data/"
-IMGFOLDER_PATH = f"{PROJ_PATH}assets/"
+ASSETS_PATH = f"{PROJ_PATH}assets/"
 IMGS_PATH = f"{PROJ_PATH}assets/imgs/"
 
 EMNIST_CLASSES = [

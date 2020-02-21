@@ -25,8 +25,9 @@ TO_MNIST = transforms.Compose(
     ]
 )
 
+
 class Chars(Dataset):
-    def __init__(self, data:list):
+    def __init__(self, data: list):
         self.data = data
         self.length = len(self.data)
 
@@ -39,9 +40,8 @@ class Chars(Dataset):
 
 if __name__ == "__main__":
 
-    print(mz.IMGFOLDER_PATH)
-    dataset = torchvision.datasets.ImageFolder(
-        mz.IMGFOLDER_PATH, transform=TO_MNIST)
+    print(mz.ASSETS_PATH)
+    dataset = torchvision.datasets.ImageFolder(mz.ASSETS_PATH, transform=TO_MNIST)
     x, y = dataset[3]
 
     loader = DataLoader(dataset, batch_size=1)

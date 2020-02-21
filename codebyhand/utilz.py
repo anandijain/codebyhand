@@ -1,3 +1,6 @@
+import os
+import glob
+
 import numpy as np
 import torch
 
@@ -5,6 +8,28 @@ from PIL import Image, ImageTk
 
 from codebyhand import loaderz
 from codebyhand import macroz as mz
+
+
+def migrate_files():
+    classed_fns = []
+    root = '/home/sippycups/codebyhand/assets/EMNIST/'
+    for c in mz.EMNIST_CLASSES:
+        files = glob.glob(f'{mz.IMGS_PATH}**_{c}.*')
+        [os.rename(f, f'{root}{c}/{f.split("/")[-1]}') for f in files]
+        classed_fns.append(files)
+    return classed_fns
+
+
+def char_from_fn(fn:str)->str:
+    return fn.split('_')[-1].split('.')[0]
+
+
+def prep_personal_dataset(dataset, dataset_name:str):
+    # only run once to set up
+    dataset_root = f'{mz.ASSETS_PATH}{dataset_name}'
+    os.mkdir(dataset_root)
+    dirnames = [dataset_root + c for c in dataset.classes]
+    os.makedirs(dirnames)
 
 
 def np_to_emnist_tensor(char):
@@ -47,9 +72,15 @@ def save_char(char: np.array, fn: str):
     im.save(f"{mz.IMGS_PATH}{fn}.png")
     return im
 
+def save_labeled_char(char: np.array, label:str, fn: str):
+    shape = char.shape
+    im = Image.fromarray(char)
+    im.save(f"{mz.ASSETS_PATH}/{label}/{fn}.png")
+    return im
 
-def infer_char(model, char: Image):
-    x = loaderz.TO_MNIST(char)
+
+def infer_char(model, char: Image, device):
+    x = loaderz.TO_MNIST(char).to(device)
 
     with torch.no_grad():
         output = model(x[None, ...])

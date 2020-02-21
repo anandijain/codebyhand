@@ -13,9 +13,9 @@ from codebyhand import macroz as mz
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
 
-BATCH_SIZE = 128
+BATCH_SIZE = 32
 
-MODEL_FN = f"{mz.SRC_PATH}convemnist2.pth"
+MODEL_FN = f"{mz.SRC_PATH}spatial_transformer_net.pth"
 
 LOAD_MODEL = True
 SAVE_MODEL = True
@@ -40,7 +40,7 @@ def prep(data, verbose=True):
         data, batch_size=BATCH_SIZE, shuffle=True,
     )
 
-    model = modelz.ConvNet(out_dim=num_classes).to(device)
+    model = modelz.SpatialTransformerNet(out_dim=num_classes).to(device)
 
     if LOAD_MODEL:
         try:
@@ -53,22 +53,40 @@ def prep(data, verbose=True):
 
     optimizer = optim.Adadelta(model.parameters())
 
-    d = {"data": data, "loader": data_loader,
-         "model": model, "optimizer": optimizer}
+    d = {"data": data, "loader": data_loader, "model": model, "optimizer": optimizer}
     if verbose:
         print(d)
     return d
+
+
+def train(d, epochs: int, save_model=True, model_fn=MODEL_FN):
+    all_preds = []
+    all_losses = []
+
+    for epoch in range(epochs):
+        preds, losses = train_epoch(
+            d, epoch, save_model=save_model, model_fn=MODEL_FN, return_preds=True
+        )
+
+        pred_chars = map(utilz.emnist_val, preds)
+
+        all_losses += losses
+        all_preds += pred_chars
+
+    return all_preds, all_losses
 
 
 def train_epoch(d, epoch, save_model=SAVE_MODEL, model_fn=MODEL_FN, return_preds=False):
     d["model"].train()
     losses = []
     preds = []
+    length = len(d["data"])
     for batch_idx, (data, target) in enumerate(d["loader"]):
         data, target = data.to(device), target.to(device)
 
         d["optimizer"].zero_grad()
-        output = d["model"](data, use_dropout=True)  # .view(-1, 10)
+        # output = d["model"](data, use_dropout=True)  # .view(-1, 10)
+        output = d["model"](data)  # .view(-1, 10)
 
         loss = F.nll_loss(output, target)
         loss.backward()
@@ -79,14 +97,10 @@ def train_epoch(d, epoch, save_model=SAVE_MODEL, model_fn=MODEL_FN, return_preds
             losses.append(loss.item())
 
         if batch_idx % LOG_INTERVAL == 0:
+            pos = batch_idx * len(data)
+            pct_pos = 100.0 * batch_idx / length
             print(
-                "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
-                    epoch,
-                    batch_idx * len(data),
-                    len(d["loader"].dataset),
-                    100.0 * batch_idx / len(d["loader"]),
-                    loss.item(),
-                )
+                f"Train Epoch: {epoch} [{pos}/{length} ({pct_pos:.6f}%)]\tLoss: {loss.item():.6f}"
             )
 
     if SAVE_MODEL:
@@ -104,10 +118,7 @@ def test_epoch(d):
         correct = 0
         for data, target in d["loader"]:
             data, target = data.to(device), target.to(device)
-            data = data.view(-1, 784)
-
-            output = d["model"](data).view(-1, 10)
-
+            output = d["model"](data)
             test_loss += F.nll_loss(output, target, reduction="sum").item()
             pred = output.max(1, keepdim=True)[1]
             correct += pred.eq(target.view_as(pred)).sum().item()
@@ -125,6 +136,6 @@ def test_epoch(d):
 
 if __name__ == "__main__":
     d = prep(data=get_mnist())
-    for i in range(0, 1):
+    for i in range(0, 2):
         train_epoch(d, i)
         # test(d)
