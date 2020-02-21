@@ -216,7 +216,7 @@ class Paint(object):
             print(f"len(x): {len(x)}, len(chars): {len(self.chars)}")
             print("multi stroke chars not supported yet")
             return
-            
+
         target_idxs, target_chars = target_info(x)
 
         print(f'target idxs: {target_idxs}')
@@ -263,16 +263,16 @@ def save_canvas(ps, fn="test", save=False):
 
 def target_info(s: str):
     classes = np.array(mz.EMNIST_CLASSES)
-
     target_idxs = []
     target_chars = []
-
     for elt in s:
         idx = np.where(classes == elt)[0][0]
         target_idxs.append(torch.tensor(idx)) #.view(-1))
         target_chars.append(mz.EMNIST_CLASSES[idx])
-
     return target_idxs, target_chars
+
+def to_points(state:list):
+
 
 if __name__ == "__main__":
     x = Paint()

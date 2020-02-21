@@ -1,12 +1,14 @@
 __pycache__
 codebyhand.egg-info/
 
+assets/*
+data/*
+
 *.csv
 *.jpeg
 *.jpg
 *.png
 *.pth
 *.pt
-
-assets/*
-data/*
+*.sqlite3
+*.sh
