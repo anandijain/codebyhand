@@ -271,7 +271,7 @@ def target_info(s: str):
         target_chars.append(mz.EMNIST_CLASSES[idx])
     return target_idxs, target_chars
 
-def to_points(state:list):
+# def to_points(state:list):
 
 
 if __name__ == "__main__":
