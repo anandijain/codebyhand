@@ -1,20 +1,17 @@
-import os
 import glob
+import os
 
 import numpy as np
-
 import torch
 import torchaudio
 import torchvision
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-from torch.nn import functional as F
-from torch.utils.data import Dataset, DataLoader
-
-from codebyhand import modelz
 from codebyhand import loaderz
 from codebyhand import macroz as mz
-
+from codebyhand import modelz
 
 TO_MNIST = transforms.Compose(
     [

@@ -20,6 +20,7 @@ setup(
         "torchaudio",
         "torchvision",
         "Pillow",
+        "matplotlib"
     ],  # external packages as dependencies
     python_requires=">=3.6",
 )

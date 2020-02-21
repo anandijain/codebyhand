@@ -7,29 +7,21 @@ https://stackoverflow.com/questions/41940945/saving-canvas-from-tkinter-to-file
 """
 import io
 import time
-
-import numpy as np
-
-import torch
-import torch.optim as optim
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
-
-import torchvision
-import matplotlib.pyplot as plt
-
-
 from tkinter import *
 from tkinter.colorchooser import askcolor
 
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torch.optim as optim
+import torchvision
 from PIL import Image, ImageTk
+from torch.utils.data import DataLoader, Dataset
 
-from codebyhand import macroz as mz
-
-from codebyhand import modelz
 from codebyhand import loaderz
-from codebyhand import utilz
-from codebyhand import train
+from codebyhand import macroz as mz
+from codebyhand import modelz, train, utilz
 
 MODEL_FN = f"{mz.SRC_PATH}spatial_transformer_net.pth"
 VISUALIZE = False

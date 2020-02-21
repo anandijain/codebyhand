@@ -1,14 +1,12 @@
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-
 import torchvision
 from torchvision import transforms
 
 from codebyhand import loaderz
-from codebyhand import modelz
-from codebyhand import utilz
 from codebyhand import macroz as mz
+from codebyhand import modelz, utilz
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # device = torch.device("cpu")
